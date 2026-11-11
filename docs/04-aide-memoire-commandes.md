@@ -1,6 +1,6 @@
 # Chapitre 04 : Aide-Mémoire des Commandes CLI & Dépannage
 
-[⬅️ Chapitre précédent : Post-Installation](./03-post-installation.md) | [🏠 Retour à l'accueil](../README.md)
+[⬅️ Chapitre précédent : Post-Installation](./03-post-installation.md) | [🏠 Accueil](../README.md) | [Chapitre suivant : Premiers Pas (VM & LXC) ➡️](./05-premiers-pas-vm-lxc.md)
 
 ---
 

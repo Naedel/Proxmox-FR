@@ -61,31 +61,41 @@ Proxmox propose 3 niveaux de dépôts officiels :
    * Dans la liste déroulante *Dépôt*, sélectionnez **`No-Subscription`** ➔ cliquez sur **`Ajouter`**.
    * Cliquez à nouveau sur **`Ajouter`**, sélectionnez **`Ceph Squid No-Subscription`** (ou **`Ceph Reef No-Subscription`** selon votre version) ➔ cliquez sur **`Ajouter`**.
 
-### Méthode B : En ligne de commande (SSH / Shell)
+### Méthode B : En ligne de commande (SSH / Shell — Format moderne DEB822 `.sources`)
 
-Sous **Proxmox VE 8.x (Debian 12 Bookworm)** :
+Sous **Proxmox VE 8.x (Debian 12 Bookworm)** et **Proxmox VE 9.x (Debian 13 Trixie)** :
 
 ```bash
-# 1. Désactiver les dépôts payants (Enterprise PVE et Ceph)
+# 1. Désactiver les dépôts payants (Enterprise PVE et Ceph, formats .list et .sources)
 sed -i 's/^deb/#deb/g' /etc/apt/sources.list.d/pve-enterprise.list 2>/dev/null || true
 sed -i 's/^deb/#deb/g' /etc/apt/sources.list.d/ceph.list 2>/dev/null || true
+mv /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/pve-enterprise.sources.disabled 2>/dev/null || true
+mv /etc/apt/sources.list.d/ceph.sources /etc/apt/sources.list.d/ceph.sources.disabled 2>/dev/null || true
 
-# 2. Ajouter les dépôts gratuits pve-no-subscription et ceph-no-subscription
-cat << 'EOF' > /etc/apt/sources.list.d/pve-no-subscription.list
-# Dépôt officiel Proxmox VE gratuit (No-Subscription)
-deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription
+# 2. Ajouter les dépôts gratuits pve-no-subscription et ceph-no-subscription (Format DEB822)
+DEBIAN_CODENAME=$(grep -oP '(?<=VERSION_CODENAME=).*' /etc/os-release | tr -d '"')
+
+cat << EOF > /etc/apt/sources.list.d/pve-no-subscription.sources
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: ${DEBIAN_CODENAME}
+Components: pve-no-subscription
+Signed-By: /usr/share/keyrings/proxmox-release-${DEBIAN_CODENAME}.gpg
 EOF
 
-cat << 'EOF' > /etc/apt/sources.list.d/ceph-no-subscription.list
-# Dépôt officiel Ceph gratuit (No-Subscription)
-deb http://download.proxmox.com/debian/ceph-squid bookworm no-subscription
+cat << EOF > /etc/apt/sources.list.d/ceph-no-subscription.sources
+Types: deb
+URIs: http://download.proxmox.com/debian/ceph-squid
+Suites: ${DEBIAN_CODENAME}
+Components: no-subscription
+Signed-By: /usr/share/keyrings/proxmox-release-${DEBIAN_CODENAME}.gpg
 EOF
 
 # 3. Activer non-free-firmware dans les dépôts Debian (utile pour le microcode CPU)
-sed -i 's/main contrib$/main contrib non-free-firmware/g' /etc/apt/sources.list
+sed -i 's/main contrib$/main contrib non-free-firmware/g' /etc/apt/sources.list 2>/dev/null || true
 ```
 
-*(Note : Des modèles au format moderne DEB822 `.sources` compatibles Proxmox 8.x / 9.x sont également disponibles dans [`configs/apt/`](../configs/apt/)).*
+*(Note : Les fichiers modèles prêts à l'emploi sont également disponibles dans [`configs/apt/`](../configs/apt/)).*
 
 ---
 

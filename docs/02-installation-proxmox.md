@@ -142,6 +142,16 @@ Reprenez les informations que vous avez notées au [Chapitre 01 - Section 3](./0
 > Que fait Proxmox sous le capot avec cette configuration réseau ?
 > Il crée automatiquement un **pont réseau Linux (`vmbr0` — Linux Bridge)** relié à votre carte physique (`eno1`). C'est comme un switch virtuel intégré à votre serveur sur lequel viendront se brancher toutes vos futures machines virtuelles et conteneurs LXC !
 
+```mermaid
+flowchart LR
+    Router["🌐 Box Internet / Routeur\n192.168.1.1"] <==>|"Câble RJ45"| NIC["🔌 Carte Physique (eno1)\n(Pas d'IP directe)"]
+    subgraph Proxmox["🖥️ Serveur Proxmox VE"]
+        NIC <==> Bridge["🔀 Switch Virtuel (vmbr0)\nIP Proxmox : 192.168.1.200/24"]
+        Bridge <==> VM1["🖥️ VM 100\n192.168.1.201"]
+        Bridge <==> LXC1["📦 LXC 200\n192.168.1.202"]
+    end
+```
+
 Cliquez sur **`Next`**.
 
 ---

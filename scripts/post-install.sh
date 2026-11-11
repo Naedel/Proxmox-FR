@@ -7,7 +7,7 @@
 # Ce script réalise de façon idempotente et sécurisée :
 #   1. La sauvegarde des fichiers de dépôts APT existants
 #   2. La désactivation des dépôts payants (pve-enterprise & ceph-enterprise)
-#   3. L'activation des dépôts officiels gratuits (pve-no-subscription & ceph)
+#   3. L'activation des dépôts officiels gratuits au format moderne DEB822 (.sources)
 #   4. La suppression persistante de la popup d'abonnement (Nag Screen)
 #   5. La mise à jour complète du système (apt-get full-upgrade)
 #   6. L'installation du microcode CPU (Intel ou AMD) et des utilitaires de base
@@ -61,16 +61,29 @@ fi
 
 DEBIAN_CODENAME=$(grep -oP '(?<=VERSION_CODENAME=).*' /etc/os-release | tr -d '"' || echo "bookworm")
 PVE_VER=$(pveversion | awk -F'/' '{print $2}')
+PVE_MAJOR=$(echo "$PVE_VER" | cut -d. -f1)
+PVE_MINOR=$(echo "$PVE_VER" | cut -d. -f2 | cut -d- -f1)
 info "Système détecté : Proxmox VE ${PVE_VER} (Debian ${DEBIAN_CODENAME})"
 
-# 2. Sauvegarde et configuration des dépôts APT
+# Détection automatique de la clé GPG officielle Proxmox et de la version Ceph recommandée
+KEYRING_FILE="/usr/share/keyrings/proxmox-release-${DEBIAN_CODENAME}.gpg"
+if [[ ! -f "$KEYRING_FILE" && -f "/etc/apt/trusted.gpg.d/proxmox-release-${DEBIAN_CODENAME}.gpg" ]]; then
+    KEYRING_FILE="/etc/apt/trusted.gpg.d/proxmox-release-${DEBIAN_CODENAME}.gpg"
+fi
+
+CEPH_RELEASE="ceph-squid"
+if [[ "$PVE_MAJOR" -eq 8 && "$PVE_MINOR" -lt 2 ]]; then
+    CEPH_RELEASE="ceph-reef"
+fi
+
+# 2. Sauvegarde et configuration des dépôts APT (Format moderne DEB822 .sources)
 if confirm "Voulez-vous configurer les dépôts gratuits (pve-no-subscription) et désactiver les dépôts Enterprise ?"; then
     BACKUP_DIR="/root/proxmox-apt-backup-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$BACKUP_DIR"
     cp -r /etc/apt/sources.list* "$BACKUP_DIR/" 2>/dev/null || true
     info "Sauvegarde des dépôts actuels effectuée dans : ${BACKUP_DIR}"
 
-    # Désactivation des dépôts Enterprise (.list et .sources DEB822)
+    # Désactivation des dépôts Enterprise (.list classiques et .sources DEB822)
     if [[ -f /etc/apt/sources.list.d/pve-enterprise.list ]]; then
         sed -i 's/^deb/#deb/g' /etc/apt/sources.list.d/pve-enterprise.list
         success "Dépôt pve-enterprise.list désactivé."
@@ -88,24 +101,39 @@ if confirm "Voulez-vous configurer les dépôts gratuits (pve-no-subscription) e
         success "Dépôt ceph.sources (Enterprise) désactivé."
     fi
 
-    # Ajout du dépôt gratuit pve-no-subscription
-    cat << EOF > /etc/apt/sources.list.d/pve-no-subscription.list
-# Dépôt officiel Proxmox VE gratuit (No-Subscription) - Configuré par Proxmox-FR
-deb http://download.proxmox.com/debian/pve ${DEBIAN_CODENAME} pve-no-subscription
-EOF
-    success "Dépôt pve-no-subscription activé pour ${DEBIAN_CODENAME}."
+    # Nettoyage d'anciens fichiers .list no-subscription pour éviter les doublons avec .sources
+    rm -f /etc/apt/sources.list.d/pve-no-subscription.list /etc/apt/sources.list.d/ceph-no-subscription.list
 
-    # Ajout du dépôt gratuit Ceph (Squid par défaut sur PVE 8.2+)
-    cat << EOF > /etc/apt/sources.list.d/ceph-no-subscription.list
-# Dépôt officiel Ceph gratuit (No-Subscription) - Configuré par Proxmox-FR
-deb http://download.proxmox.com/debian/ceph-squid ${DEBIAN_CODENAME} no-subscription
+    # Création du dépôt gratuit pve-no-subscription au format moderne DEB822 (.sources)
+    cat << EOF > /etc/apt/sources.list.d/pve-no-subscription.sources
+# Dépôt officiel Proxmox VE gratuit (No-Subscription) - Configuré par Proxmox-FR
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: ${DEBIAN_CODENAME}
+Components: pve-no-subscription
+Signed-By: ${KEYRING_FILE}
 EOF
-    success "Dépôt ceph-squid no-subscription activé."
+    success "Dépôt pve-no-subscription.sources (DEB822) activé pour ${DEBIAN_CODENAME}."
+
+    # Création du dépôt gratuit Ceph au format moderne DEB822 (.sources)
+    cat << EOF > /etc/apt/sources.list.d/ceph-no-subscription.sources
+# Dépôt officiel Ceph gratuit (No-Subscription) - Configuré par Proxmox-FR
+Types: deb
+URIs: http://download.proxmox.com/debian/${CEPH_RELEASE}
+Suites: ${DEBIAN_CODENAME}
+Components: no-subscription
+Signed-By: ${KEYRING_FILE}
+EOF
+    success "Dépôt ceph-no-subscription.sources (${CEPH_RELEASE}) activé."
 
     # Activation de non-free-firmware sur Debian (requis pour intel-microcode / amd64-microcode)
     if [[ -f /etc/apt/sources.list ]] && ! grep -q "non-free-firmware" /etc/apt/sources.list; then
         sed -i 's/main contrib$/main contrib non-free-firmware/g' /etc/apt/sources.list
         success "Composant 'non-free-firmware' ajouté à /etc/apt/sources.list."
+    fi
+    if [[ -f /etc/apt/sources.list.d/debian.sources ]] && ! grep -q "non-free-firmware" /etc/apt/sources.list.d/debian.sources; then
+        sed -i 's/Components: main contrib$/Components: main contrib non-free-firmware/g' /etc/apt/sources.list.d/debian.sources
+        success "Composant 'non-free-firmware' ajouté à /etc/apt/sources.list.d/debian.sources."
     fi
 fi
 

@@ -1,0 +1,58 @@
+name: Validation Scripts & Documentation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: ShellCheck & Vérification des fichiers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Vérification de la syntaxe Bash (bash -n)
+        run: |
+          for script in scripts/*.sh; do
+            echo "Vérification syntaxique de $script..."
+            bash -n "$script"
+          done
+
+      - name: Analyse statique ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          severity: warning
+
+      - name: Vérification des liens internes Markdown
+        run: |
+          python3 - << 'EOF'
+          import os, re, sys
+
+          errors = []
+          link_re = re.compile(r'\[[^\]]+\]\(([^)#]+)(?:#[^)]*)?\)')
+
+          for root, _, files in os.walk('.'):
+              if '.git' in root:
+                  continue
+              for f in files:
+                  if f.endswith('.md'):
+                      path = os.path.join(root, f)
+                      with open(path, encoding='utf-8') as fp:
+                          content = fp.read()
+                      for match in link_re.finditer(content):
+                          target = match.group(1).strip()
+                          if target.startswith(('http://', 'https://', 'mailto:')):
+                              continue
+                          resolved = os.path.normpath(os.path.join(root, target))
+                          if not os.path.exists(resolved):
+                              errors.append(f"{path} -> lien introuvable : {target} ({resolved})")
+
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+          print("Tous les liens internes Markdown sont valides !")
+          EOF
