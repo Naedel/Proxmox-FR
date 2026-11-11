@@ -1,0 +1,53 @@
+# ==============================================================================
+# Exemples de configurations réseau pour Proxmox VE
+# Emplacement cible sur le serveur : /etc/network/interfaces
+# Commande pour appliquer sans couper le serveur : ifreload -a
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# EXEMPLE 1 : Configuration standard (1 carte Ethernet + Bridge VLAN-Aware)
+# Idéal pour 95 % des installations Homelab et serveurs mono-carte réseau.
+# ------------------------------------------------------------------------------
+auto lo
+iface lo inet loopback
+
+# Carte réseau physique (ne porte pas d'adresse IP directement)
+iface eno1 inet manual
+
+# Pont réseau principal (Switch virtuel pour l'hôte, les VM et les LXC)
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.200/24
+    gateway 192.168.1.1
+    bridge-ports eno1
+    bridge-stp off
+    bridge-fd 0
+    # Activer le support des VLANs (permet d'assigner un VLAN Tag à n'importe quelle VM/LXC)
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+
+source /etc/network/interfaces.d/*
+
+
+# ------------------------------------------------------------------------------
+# EXEMPLE 2 : Agrégation de 2 cartes réseau (Bonding LACP 802.3ad + VLANs)
+# Idéal pour un serveur doté de 2 ports Ethernet (ex: eno1 + eno2) reliés à un
+# switch administrable pour doubler la bande passante et tolérer la panne d'un câble.
+# (Commenté par défaut — décommentez et adaptez si besoin)
+# ------------------------------------------------------------------------------
+# auto bond0
+# iface bond0 inet manual
+#     bond-slaves eno1 eno2
+#     bond-miimon 100
+#     bond-mode 802.3ad
+#     bond-xmit-hash-policy layer2+3
+#
+# auto vmbr0
+# iface vmbr0 inet static
+#     address 192.168.1.200/24
+#     gateway 192.168.1.1
+#     bridge-ports bond0
+#     bridge-stp off
+#     bridge-fd 0
+#     bridge-vlan-aware yes
+#     bridge-vids 2-4094

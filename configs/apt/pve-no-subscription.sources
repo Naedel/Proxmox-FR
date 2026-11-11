@@ -1,0 +1,10 @@
+# ==============================================================================
+# Dépôt officiel Proxmox VE gratuit (No-Subscription) - Format DEB822
+# Emplacement cible : /etc/apt/sources.list.d/pve-no-subscription.sources
+# Compatible : Proxmox VE 8.x (bookworm) — remplacer 'bookworm' par 'trixie' sur PVE 9.x
+# ==============================================================================
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: bookworm
+Components: pve-no-subscription
+Signed-By: /usr/share/keyrings/proxmox-release-bookworm.gpg

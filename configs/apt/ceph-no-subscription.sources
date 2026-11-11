@@ -1,0 +1,10 @@
+# ==============================================================================
+# Dépôt officiel Ceph gratuit (No-Subscription) - Format DEB822
+# Emplacement cible : /etc/apt/sources.list.d/ceph-no-subscription.sources
+# Compatible : Proxmox VE 8.2+ (Ceph Squid sur Debian 12 bookworm)
+# ==============================================================================
+Types: deb
+URIs: http://download.proxmox.com/debian/ceph-squid
+Suites: bookworm
+Components: no-subscription
+Signed-By: /usr/share/keyrings/proxmox-release-bookworm.gpg

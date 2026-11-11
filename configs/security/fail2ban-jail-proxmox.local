@@ -1,0 +1,24 @@
+# ==============================================================================
+# Configuration de la prison (Jail) Fail2ban pour Proxmox VE (Port 8006 & SSH)
+# Emplacement cible : /etc/fail2ban/jail.d/proxmox.local
+# ==============================================================================
+
+[DEFAULT]
+# Ignorer le réseau local de confiance si souhaité (décommentez et adaptez) :
+# ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+[sshd]
+enabled = true
+backend = systemd
+
+[proxmox]
+enabled  = true
+port     = https,http,8006
+filter   = proxmox
+backend  = systemd
+maxretry = 3
+findtime = 15m
+bantime  = 2h
